@@ -1,0 +1,8 @@
+{
+    "basicItCenterJwtPrivateKey" : "basicItCenterJwtPrivateKeyEnvVar",
+    "mailer" : {
+        "host" : "mailHost",
+        "clientId" : "mailClientID",
+        "clientPassword" : "mailClientPassword"
+    }
+}
