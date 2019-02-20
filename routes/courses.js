@@ -40,20 +40,20 @@ router.get("/:id", validateObjectId, async (req, res, next) => {
                 language: `$${lang}.language`,
                 phases: `$${lang}.phases`
             }
-        })
-        .lookup({
-            from: "courselangs",
-            // localField: "connectedCourses",
-            // foreignField: "_id",
-            pipeline: [{
-                "$project": {
-                    course: {
-                        name: `$${lang}.name`,
-                    }
-                }
-            }],
-            as: "hoparinio"
         });
+        // .lookup({
+        //     from: "courselangs",
+        //     // localField: "connectedCourses",
+        //     // foreignField: "_id",
+        //     pipeline: [{
+        //         "$project": {
+        //             course: {
+        //                 name: `$${lang}.name`,
+        //             }
+        //         }
+        //     }],
+        //     as: "hoparinio"
+        // });
 
     // const x = await Course.populate(courses, {
     //     model: "CourseLang",
