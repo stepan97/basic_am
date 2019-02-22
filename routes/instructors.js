@@ -12,7 +12,7 @@ const {DEFAULT_INSTRUCTOR_IMAGE_URL, basicEmailAddress} = require("../constants"
 const {availableLanguages} = require("../constants");
 const logger = require("../startup/logger");
 const {sendEmail} = require("../utils/email");
-
+const validateMimeType = require("../utils/validateImageMimeType");
 
 router.get("/full", auth, async (req, res) => {
     const instructors = await Instructor.find();
@@ -131,10 +131,13 @@ router.post("/", auth, async (req, res, next) => {
 // edit an instructor data
 router.put("/:id", auth, validateObjectId, async (req, res, next) => {
     const {error} = validateInstructor(req.body) ;
-    if(error) return next(error.details[0].message);
+    if(error) {
+        const err = new Error(error.details[0].message);
+        err.status = 400;
+        return next(err);
+    }
 
-    // TODO: ensure that imageUrl does not change after this update
-    const instructor = Instructor.findByIdAndUpdate(req.params.id,
+    const instructor = await Instructor.findByIdAndUpdate(req.params.id,
         {
             hy: req.body.hy,
             ru: req.body.ru,
@@ -157,6 +160,15 @@ router.put("/:id", auth, validateObjectId, async (req, res, next) => {
 
 // edit an instructor image
 router.put("/uploadImage/:id", auth, validateObjectId, uploadInstructorImage.single("instructorImage"), async (req, res, next) => {
+    if(!req.file) {
+        const err = new Error("No file selected.");
+        err.status = 400;
+        return next(err);
+    }
+    
+    const mimeTypeErr = validateMimeType(req.file.mimetype);
+    if(mimeTypeErr) return next(mimeTypeErr);
+    
     let instructor = await Instructor.findById(req.params.id);
     if(!instructor) {
         const err = new Error("Instructor with given id was not found.");
@@ -165,17 +177,22 @@ router.put("/uploadImage/:id", auth, validateObjectId, uploadInstructorImage.sin
     }
 
     const tempPath = req.file.path;
-    const dateStr = new Date().toDateString();
+    const dateStr = Date.now();
     const imageName =  dateStr + "_BasicItCenter_" + req.file.originalname;
+    // const imageName = req.file.originalname;
 
     const targetPath = path.join("./public/images/instructors/", imageName);
 
+    // console.log("image url: " + instructor.imageUrl);
+
     // deletes instructor's previous image if it has one and it's not the default image
     if(instructor.imageUrl && instructor.imageUrl !== DEFAULT_INSTRUCTOR_IMAGE_URL){
-        fs.unlink("public/images/instructors/" + instructor.imageUrl, async function(err){
+        const url = instructor.imageUrl.substring(instructor.imageUrl.lastIndexOf("/"));
+        fs.unlink(`./public/images/instructors/${url}`, async function(err){
+            if(!err || err.code === "ENOENT") return;
+
             // log error
             logger.log("error", "Could not delete image for instructor in /instructors/uploadImage", err);
-            // console.log(err);
             // Inform admin to manually delete this image.
             const emailErr = await sendEmail({
                 message: {
@@ -200,9 +217,14 @@ router.put("/uploadImage/:id", auth, validateObjectId, uploadInstructorImage.sin
             return next(error);
         }
 
-        instructor.imageUrl = targetPath;
+        // instructor.imageUrl = `/static/images/instructors/${imageName}`;
 
-        instructor = await Instructor.findByIdAndUpdate(req.params.id, instructor, {new: true});
+        instructor = await Instructor.findByIdAndUpdate(req.params.id, 
+            {
+                $set: {
+                    imageUrl : `/static/images/instructors/${imageName}`
+                }
+            }, {new: true});
 
         if(!instructor){
             fs.unlink(targetPath, (unlinkErr) => {
@@ -214,7 +236,7 @@ router.put("/uploadImage/:id", auth, validateObjectId, uploadInstructorImage.sin
             });
         }else {
             res.send({
-                message: "Image uploaded for " + instructor.name,
+                message: "Image uploaded for " + instructor.hy.name,
                 error: null,
                 data: instructor,
                 status: 200
@@ -241,8 +263,8 @@ router.delete("/:id", auth, validateObjectId, async (req, res, next) => {
     //     }
     // });
 
-    
-    const deleteError = await deleteAnImage(instructor.imageUrl);
+    const url = instructor.imageUrl.substring(instructor.imageUrl.lastIndexOf("/"));
+    const deleteError = await deleteAnImage(`./public/images/instructors/${url}`);
     if(deleteError) return next(deleteError);
 
     res.send({
@@ -256,12 +278,17 @@ router.delete("/:id", auth, validateObjectId, async (req, res, next) => {
 // deletes a file if it's not the default image
 function deleteAnImage(path){
     return new Promise((resolve) => {
+        if(!path)
+            return resolve(undefined);
+            
         if(path === DEFAULT_INSTRUCTOR_IMAGE_URL)
             return resolve(undefined);
 
         // delete image
         fs.unlink(path, err => {
             if(err) {
+                if(err.code === "ENOENT") return resolve(undefined);
+
                 logger.log("error", "Could not delete image in /admins/deleteAnImage", err);
                 if(!err.message) err.message = "Could not delete image at path " + path;
                 err.status = err.status || 500;

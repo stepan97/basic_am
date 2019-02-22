@@ -10,18 +10,18 @@ const {
     DEFAULT_COURSE_IMAGE_URL,
     DEFAULT_COURSE_ICON_URL,
     availableLanguages,
-    basicEmailAddress } = require("../constants");
+    basicEmailAddress} = require("../constants");
 const validateObjectId = require("../middleware/validateObjectId");
 const mongooseObjectId = require("mongoose").Types.ObjectId;
 const logger = require("../startup/logger");
 const {sendEmail} = require("../utils/email");
-
+const validateMimeType = require("../utils/validateImageMimeType");
 
 // list courses in all languages
 router.get("/full", auth, async (req, res) => {
-    const courses = await Course.find()
-        .populate("instructors")
-        .populate("connectedCoursesIds");
+    const courses = await Course.find();
+    // .populate("instructors")
+    // .populate("connectedCoursesIds");
 
     res.send({
         data: courses,
@@ -129,7 +129,7 @@ router.get("/", async (req, res) => {
 });
 
 // add a course
-router.post("/courses", auth, async (req, res, next) => {
+router.post("/", auth, async (req, res, next) => {
     let {error} = validateCourse(req.body);
     if(error){
         const err = new Error(error.details[0].message);
@@ -137,9 +137,9 @@ router.post("/courses", auth, async (req, res, next) => {
         return next(err);
     }
 
-    let connectedCourses = [];
-    if(req.body.connectedCoursesIds && req.body.connectedCoursesIds.length > 0)
-        connectedCourses = req.body.connectedCoursesIds;
+    // let connectedCourses = [];
+    // if(req.body.connectedCoursesIds && req.body.connectedCoursesIds.length > 0)
+    //     connectedCourses = req.body.connectedCoursesIds;
 
     const course = new Course({
         routeUrl: req.body.routeUrl,
@@ -150,7 +150,7 @@ router.post("/courses", auth, async (req, res, next) => {
         iconUrl: DEFAULT_COURSE_ICON_URL,
         isPrimary: req.body.isPrimary,
         instructors: req.body.instructors,
-        connectedCoursesIds: connectedCourses,
+        connectedCoursesIds: req.body.connectedCoursesIds, //connectedCourses,
         status: req.body.status,
         startTime: req.body.startTime,
         price: req.body.price
@@ -201,7 +201,8 @@ router.put("/:id", validateObjectId, auth, async (req, res, next) => {
             status: req.body.status,
             startTime: req.body.startTime,
             price: req.body.price
-        }, {new: true});
+        }, {new: true})
+        .select("-__v");
 
     if(!course){
         const err = new Error("Course with given id was not found.");
@@ -212,13 +213,22 @@ router.put("/:id", validateObjectId, auth, async (req, res, next) => {
     return res.send({
         message: "Course " + course.name + " updated.",
         error: null,
-        data: course.select("-__v").populate("instructors"),
+        data: course,
         status: 200
     });
 });
 
 // edit a course image
 router.put("/uploadImage/:id", auth, validateObjectId, uploadCourseImage.single("courseImage"), async (req, res, next) => {
+    if(!req.file){
+        const err = new Error("No file uploaded.");
+        err.status = 400;
+        return next(err);
+    }
+    
+    const mimeTypeErr = validateMimeType(req.file.mimetype);
+    if(mimeTypeErr) return next(mimeTypeErr);
+    
     let course = await Course.findById(req.params.id);
     if(!course){
         const err = new Error("Course with given id was not found.");
@@ -227,18 +237,17 @@ router.put("/uploadImage/:id", auth, validateObjectId, uploadCourseImage.single(
     }
 
     const tempPath = req.file.path;
-    const dateStr = new Date().toDateString();
+    const dateStr = Date.now();
     const imageName = dateStr + "_BasicItCenter_" + req.file.originalname;
 
     const targetPath = path.join("./public/images/courses/images", imageName);
 
     // deletes course's previous image if it has one and it's not the default image
     if(course.imageUrl && course.imageUrl !== DEFAULT_COURSE_IMAGE_URL){
-        // TODO: check, i think i should remove string from below and leave only course.imageUrl
-        fs.unlink("public/images/courses/images" + course.imageUrl, async function(err){
-            // log error
-            logger.log("error", err.message, err);
-            // console.log("Inform admin to manually delete this image.");
+        const url = course.imageUrl.substring(course.imageUrl.lastIndexOf("/"));
+
+        const deleteError = await deleteAnImage(`./public/images/courses/images/${url}`);
+        if(deleteError) {
             // send email to admin for deleting this image manually
             const emailErr = await sendEmail({
                 message: {
@@ -255,7 +264,7 @@ router.put("/uploadImage/:id", auth, validateObjectId, uploadCourseImage.single(
             if(emailErr){
                 logger.log("error", "Could not send email for upload course image error.", emailErr);
             }
-        });
+        }
     }
 
     fs.rename(tempPath, targetPath, async (error) => {
@@ -268,7 +277,7 @@ router.put("/uploadImage/:id", auth, validateObjectId, uploadCourseImage.single(
 
     course = await Course.findByIdAndUpdate(req.params.id, {
         $set: {
-            imageUrl: `static/images/courses/images/${imageName}`
+            imageUrl: `/static/images/courses/images/${imageName}`
         }
     }, {new: true});
    
@@ -282,7 +291,7 @@ router.put("/uploadImage/:id", auth, validateObjectId, uploadCourseImage.single(
         });
     }else {
         res.send({
-            message: "Image uploaded for " + course.name,
+            message: "Image uploaded for " + course.hy.name,
             error: null,
             data: course,
             status: 200
@@ -292,6 +301,15 @@ router.put("/uploadImage/:id", auth, validateObjectId, uploadCourseImage.single(
 
 // edit a course icon
 router.put("/uploadIcon/:id", auth, validateObjectId, uploadCourseIcon.single("courseIcon"), async (req, res, next) => {
+    if(!req.file){
+        const err = new Error("No file uploaded.");
+        err.status = 400;
+        return next(err);
+    }
+    
+    const mimeTypeErr = validateMimeType(req.file.mimetype);
+    if(mimeTypeErr) return next(mimeTypeErr);
+    
     let course = await Course.findById(req.params.id);
     if(!course){
         const err = new Error("Course with given id was not found.");
@@ -300,16 +318,15 @@ router.put("/uploadIcon/:id", auth, validateObjectId, uploadCourseIcon.single("c
     }
 
     const tempPath = req.file.path;
-    const dateStr = new Date().toDateString();
+    const dateStr = Date.now();
     const imageName = dateStr + "_BasicItCenter_" + req.file.originalname;
 
     const targetPath = path.join("./public/images/courses/icons", imageName);
 
     if(course.iconUrl && course.iconUrl !== DEFAULT_COURSE_ICON_URL){
-        fs.unlink("public/images/courses/icons" + course.iconUrl, async function(err){
-            // log error
-            logger.log("error", err.message, err);
-            // send email to admin for deleting this image manually
+        const url = course.iconUrl.substring(course.iconUrl.lastIndexOf("/"));
+        const deleteError = await deleteAnImage(`./public/images/courses/icons/${url}`);
+        if(deleteError){
             const emailErr = await sendEmail({
                 message: {
                     to: basicEmailAddress
@@ -325,7 +342,7 @@ router.put("/uploadIcon/:id", auth, validateObjectId, uploadCourseIcon.single("c
             if(emailErr){
                 logger.log("error", "Could not send email for upload course image error.", emailErr);
             }
-        });
+        }
     }
 
     fs.rename(tempPath, targetPath, async (error) => {
@@ -338,7 +355,7 @@ router.put("/uploadIcon/:id", auth, validateObjectId, uploadCourseIcon.single("c
 
     course = await Course.findByIdAndUpdate(req.params.id, {
         $set: {
-            iconUrl: `static/images/courses/icons/${imageName}`
+            iconUrl: `/static/images/courses/icons/${imageName}`
         }
     }, {new: true});
    
@@ -352,7 +369,7 @@ router.put("/uploadIcon/:id", auth, validateObjectId, uploadCourseIcon.single("c
         });
     }else {
         res.send({
-            message: "Image uploaded for " + course.name,
+            message: "Icon uploaded for " + course.hy.name,
             error: null,
             data: course,
             status: 200
@@ -362,30 +379,56 @@ router.put("/uploadIcon/:id", auth, validateObjectId, uploadCourseIcon.single("c
 
 // delete a course
 router.delete("/:id", auth, validateObjectId, async (req, res, next) => {
-    try{
-        const course = await Course.findByIdAndDelete(req.params.id);
-        if(!course) {
-            const err = new Error("Course with given id was not found.");
-            err.status = 400;
-            return next(err);
-        }
-
-        const imageError = await deleteAnImage(course.imageUrl);
-        if(imageError)return next(imageError);
-        const iconError = await deleteAnImage(course.iconUrl);
-        if(iconError) return next(iconError);
-
-        res.send({
-            message: "Course has been deleted.",
-            error: null,
-            data: course,
-            status: 200
-        });
-    }catch(ex){
-        let err = new Error("Course id is invalid.");
+    const course = await Course.findByIdAndDelete(req.params.id);
+    if(!course) {
+        const err = new Error("Course with given id was not found.");
         err.status = 400;
         return next(err);
     }
+
+    let errorMessage = undefined;
+
+    let imageUrl = course.imageUrl.substring(course.imageUrl.lastIndexOf("/"));
+    imageUrl = `./public/images/courses/images/${imageUrl}`;
+    let iconUrl = course.iconUrl.substring(course.iconUrl.lastIndexOf("/"));
+    iconUrl = `./public/images/courses/icons/${iconUrl}`;
+
+    const imageError = await deleteAnImage(imageUrl);
+    if(imageError){
+        errorMessage = "image to delete: " + imageUrl;
+        logger.log("error", "Could not delete course image. ", imageError);
+    }
+    const iconError = await deleteAnImage(iconUrl);
+    if(iconError) {
+        const msg = "icon to delete: " + iconUrl;
+        errorMessage == undefined ? errorMessage = msg : errorMessage = "\n" + msg;
+        logger.log("error", "Could not delete course icon. ", iconError);
+    }
+
+    if(errorMessage){
+        const emailErr = await sendEmail({
+            message: {
+                to: basicEmailAddress
+            },
+            locals: {
+                name: "SERVER",
+                email: "no email",
+                phone: "no phone",
+                message: "Please delete this image from server:\n"+errorMessage
+            }
+        });
+
+        if(emailErr){
+            logger.log("error", "Could not send email for upload course image error.", emailErr);
+        }
+    }
+
+    res.send({
+        message: "Course has been deleted.",
+        error: null,
+        data: course,
+        status: 200
+    });
 });
 
 // deletes a file if it's not the default image or icon
@@ -397,6 +440,8 @@ function deleteAnImage(path){
         // delete image
         fs.unlink(path, err => {
             if(err) {
+                if(err.code === "ENOENT") return resolve(undefined);
+
                 logger.log("error", "Could not delete image in /admins/deleteAnImage", err);
                 if(!err.message) err.message = "Could not delete image at path " + path;
                 err.status = err.status || 500;

@@ -1,2 +1,6 @@
 node_modules/
 public/
+
+!*/public/images/courses/images/default_course_image.png
+!*/public/images/courses/icons/default_course_icon.png
+!*/public/images/instructors/default_instructor_image.png

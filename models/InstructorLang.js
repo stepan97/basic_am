@@ -29,10 +29,10 @@ function validateInstructor(instructor){
     };
 
     const instructorLangSchema = {
-        hy: schema,
-        ru: schema,
-        en: schema,
-        imageUrl: Joi.string().default(DEFAULT_INSTRUCTOR_IMAGE_URL)
+        hy: Joi.object(schema).required(), //schema,
+        ru: Joi.object(schema).required(), //schema,
+        en: Joi.object(schema).required() //schema,
+        // imageUrl: Joi.string().default(DEFAULT_INSTRUCTOR_IMAGE_URL)
     };
 
     return Joi.validate(instructor, instructorLangSchema);

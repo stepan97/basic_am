@@ -5,8 +5,8 @@ const {DEFAULT_COURSE_IMAGE_URL, DEFAULT_COURSE_ICON_URL} = require("../constant
 
 const courseSchema = new mongoose.Schema({
     routeUrl: {type: String, required: true},
-    imageUrl: {type: String, required: false, default: DEFAULT_COURSE_IMAGE_URL},
-    iconUrl: {type: String, required: false, default: DEFAULT_COURSE_ICON_URL},
+    imageUrl: {type: String, required: true, default: DEFAULT_COURSE_IMAGE_URL},
+    iconUrl: {type: String, required: true, default: DEFAULT_COURSE_ICON_URL},
     isPrimary: {type: Boolean, default: true},
     instructors: [{type: mongoose.Schema.Types.ObjectId, required: true, ref: "InstructorLang"}],
     connectedCoursesIds: [{type: mongoose.Schema.Types.ObjectId, required: false}],
@@ -99,8 +99,8 @@ function validateCourse(course){
         hy: courseSchema.required(),
         ru: courseSchema.required(),
         en: courseSchema.required(),
-        // imageUrl: Joi.string().default("aef"),
-        // iconUrl: Joi.string().default("asd"),
+        // imageUrl: Joi.string().default(DEFAULT_COURSE_IMAGE_URL),
+        // iconUrl: Joi.string().default(DEFAULT_COURSE_ICON_URL),
         isPrimary: Joi.boolean().default(true).required(),
         instructors: Joi.array().items(Joi.ObjectId()).min(1).required(),
         connectedCoursesIds: Joi.array().items(Joi.ObjectId()).min(0),
