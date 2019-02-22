@@ -4,5 +4,6 @@
         "host" : "mailHost",
         "clientId" : "mailClientID",
         "clientPassword" : "mailClientPassword"
-    }
+    },
+    "dbConnectionString" : "dbConString"
 }
