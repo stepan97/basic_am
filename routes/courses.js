@@ -9,7 +9,6 @@ const fs = require("fs");
 const {
     DEFAULT_COURSE_IMAGE_URL,
     DEFAULT_COURSE_ICON_URL,
-    DEFAULT_INSTRUCTOR_IMAGE_URL,
     availableLanguages,
     basicEmailAddress } = require("../constants");
 const validateObjectId = require("../middleware/validateObjectId");
@@ -389,10 +388,10 @@ router.delete("/:id", auth, validateObjectId, async (req, res, next) => {
     }
 });
 
-// deletes a file if it's not a default image
+// deletes a file if it's not the default image or icon
 function deleteAnImage(path){
     return new Promise((resolve) => {
-        if(path === DEFAULT_COURSE_IMAGE_URL || path === DEFAULT_COURSE_ICON_URL || path === DEFAULT_INSTRUCTOR_IMAGE_URL)
+        if(path === DEFAULT_COURSE_IMAGE_URL || path === DEFAULT_COURSE_ICON_URL)
             return resolve(undefined);
 
         // delete image

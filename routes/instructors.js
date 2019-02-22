@@ -7,9 +7,12 @@ const multer = require("multer");
 const uploadInstructorImage = multer({dest: "public/images/instructors"});
 const path = require("path");
 const fs = require("fs");
-const {DEFAULT_INSTRUCTOR_IMAGE_URL} = require("../constants");
+const {DEFAULT_INSTRUCTOR_IMAGE_URL, basicEmailAddress} = require("../constants");
 // const {Course} = require("../models/CourseLang");
 const {availableLanguages} = require("../constants");
+const logger = require("../startup/logger");
+const {sendEmail} = require("../utils/email");
+
 
 router.get("/full", auth, async (req, res) => {
     const instructors = await Instructor.find();
@@ -169,10 +172,26 @@ router.put("/uploadImage/:id", auth, validateObjectId, uploadInstructorImage.sin
 
     // deletes instructor's previous image if it has one and it's not the default image
     if(instructor.imageUrl && instructor.imageUrl !== DEFAULT_INSTRUCTOR_IMAGE_URL){
-        fs.unlink("public/images/instructors/" + instructor.imageUrl, function(err){
+        fs.unlink("public/images/instructors/" + instructor.imageUrl, async function(err){
             // log error
-            console.log(err);
-            console.log("Inform admin to manually delete this image.");
+            logger.log("error", "Could not delete image for instructor in /instructors/uploadImage", err);
+            // console.log(err);
+            // Inform admin to manually delete this image.
+            const emailErr = await sendEmail({
+                message: {
+                    to: basicEmailAddress
+                },
+                locals: {
+                    name: "SERVER",
+                    email: "no email",
+                    phone: "no phone",
+                    message: "Please delete this image from server:\n"+instructor.imageUrl
+                }
+            });
+
+            if(emailErr){
+                logger.log("error", "Could not send email for upload course image error.", emailErr);
+            }
         });
     }
 
@@ -233,5 +252,25 @@ router.delete("/:id", auth, validateObjectId, async (req, res, next) => {
         status: 200
     });
 });
+
+// deletes a file if it's not the default image
+function deleteAnImage(path){
+    return new Promise((resolve) => {
+        if(path === DEFAULT_INSTRUCTOR_IMAGE_URL)
+            return resolve(undefined);
+
+        // delete image
+        fs.unlink(path, err => {
+            if(err) {
+                logger.log("error", "Could not delete image in /admins/deleteAnImage", err);
+                if(!err.message) err.message = "Could not delete image at path " + path;
+                err.status = err.status || 500;
+                return resolve(err);
+            }
+
+            resolve(undefined);
+        });
+    });
+}
 
 module.exports = router;
