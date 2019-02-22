@@ -10,7 +10,7 @@ const fs = require("fs");
 const {DEFAULT_INSTRUCTOR_IMAGE_URL, basicEmailAddress} = require("../constants");
 // const {Course} = require("../models/CourseLang");
 const {availableLanguages} = require("../constants");
-const logger = require("../startup/logger");
+const logger = require("../startup/logger").logger;
 const {sendEmail} = require("../utils/email");
 const validateMimeType = require("../utils/validateImageMimeType");
 

@@ -12,7 +12,7 @@ const availableLanguages = [
 ];
 
 // TODO: change email address
-const basicEmailAddress = "n.stepan.97@gmail.com";
+const basicEmailAddress = "address@mail.ru";
 
 module.exports = {
     DEFAULT_COURSE_ICON_URL: "/static/images/courses/images/default_course_icon.png",

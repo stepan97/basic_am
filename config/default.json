@@ -4,5 +4,6 @@
         "host" : "smtp.gmail.com",
         "clientId" : "",
         "clientPassword" : ""
-    }
+    },
+    "dbConnectionString" : "mongodb://127.0.0.1:27017/basic_am"
 }

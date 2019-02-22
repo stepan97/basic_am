@@ -13,7 +13,7 @@ const {
     basicEmailAddress} = require("../constants");
 const validateObjectId = require("../middleware/validateObjectId");
 const mongooseObjectId = require("mongoose").Types.ObjectId;
-const logger = require("../startup/logger");
+const logger = require("../startup/logger").logger;
 const {sendEmail} = require("../utils/email");
 const validateMimeType = require("../utils/validateImageMimeType");
 
@@ -186,7 +186,6 @@ router.put("/:id", validateObjectId, auth, async (req, res, next) => {
         return next(err);
     }
     
-    // TODO: check image url. it must not change
     const course = await Course.findOneAndUpdate({_id: req.params.id},
         {
             routeUrl: req.body.routeUrl,

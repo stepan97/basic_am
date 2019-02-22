@@ -1,8 +1,9 @@
 const router = require("express").Router();
 const emailUtils = require("../utils/email");
+const {basicEmailAddress} = require("../constants");
 
 router.post("/contact", async (req, res, next) => {
-    req.body.to = "n.stepan.97@gmail.com"; // TODO: change the email
+    req.body.to = basicEmailAddress;
     const {error} = await emailUtils.validateEmail(req.body);
     if(error) {
         const err = new Error(error.details[0].message);

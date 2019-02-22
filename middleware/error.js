@@ -1,14 +1,10 @@
 // const winston = require('winston');
-const logger = require("../startup/logger");
+const logger = require("../startup/logger").logger;
 
 module.exports = function(err, req, res, next){
-//   winston.error(err.message, err);
-
-    // console.error("My error: " + err);
-
     const error = {
         status: err.status || 500,
-        message: err.message || "Internal server error.",
+        message: err.message || "Something failed.",
         data: null,
         error: err.message || "Internal server error."
     };
@@ -17,5 +13,4 @@ module.exports = function(err, req, res, next){
         logger.log("error", error.error, err);
 
     res.status(error.status).send(error);
-    // res.status(500).send("Something failed.");
 };

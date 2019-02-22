@@ -1,7 +1,7 @@
 require("express-async-errors");
 const express = require("express");
 const app =  express();
-const logger = require("./startup/logger");
+const logger = require("./startup/logger").logger;
 const morgan = require("morgan");
 
 app.use(morgan("short"));
