@@ -1,5 +1,5 @@
 {
-    "basicItCenterJwtPrivateKey" : "",
+    "basicItCenterJwtPrivateKey" : "jwtPrivateKey123",
     "mailer" : {
         "host" : "smtp.gmail.com",
         "clientId" : "",

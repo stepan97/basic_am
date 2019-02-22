@@ -2,6 +2,8 @@ const express = require("express");
 const courses = require("../routes/courses");
 const instructors = require("../routes/instructors");
 const home = require("../routes/home");
+const admins = require("../routes/admins");
+const auth = require("../middleware/auth");
 const error = require("../middleware/error");
 
 module.exports = function (app) {
@@ -22,6 +24,7 @@ module.exports = function (app) {
     app.use("/api/v1/", home);
     app.use("/api/v1/courses", courses);
     app.use("/api/v1/instructors", instructors);
+    app.use("/api/v1/admins", auth, admins);
 
     // 404 not found
     app.use("*", (req, res) => {

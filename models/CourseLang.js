@@ -61,7 +61,7 @@ const courseSchema = new mongoose.Schema({
             themes: {type: [String], required: true}
         }]
     }
-}, {strict: false});
+}); // , {strict: false});
 
 function validateCourse(course){
     const nestedPhasesSchema = Joi.object().keys({
@@ -103,7 +103,7 @@ function validateCourse(course){
         // iconUrl: Joi.string().default("asd"),
         isPrimary: Joi.boolean().default(true).required(),
         instructors: Joi.array().items(Joi.ObjectId()).min(1).required(),
-        connectedCoursesIds: Joi.array().items(Joi.ObjectId()),
+        connectedCoursesIds: Joi.array().items(Joi.ObjectId()).min(0),
         duration: Joi.number(),
         price: Joi.number(),
         routeUrl: Joi.string().required(),

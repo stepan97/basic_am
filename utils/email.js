@@ -58,5 +58,25 @@ function sendEmail(data){
     });
 }
 
+function forgotPasswordEmail(data){
+    return new Promise((resolve) => {
+        email
+            .send({
+                template: "forgot_password",
+                message: {
+                    to: data.to
+                },
+                locals: {
+                    username: data.username,
+                    url: data.url,
+                    password: data.password
+                }
+            })
+            .then(resolve(undefined))
+            .catch(err => resolve(err));
+    });
+}
+
 module.exports.sendEmail = sendEmail;
 module.exports.validateEmail = validate;
+module.exports.forgotPasswordEmail = forgotPasswordEmail;

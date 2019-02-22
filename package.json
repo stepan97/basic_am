@@ -5,15 +5,17 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start" : "node index.js"
+    "start": "node index.js"
   },
   "author": "Stepan Nikoghosyan",
   "license": "ISC",
   "dependencies": {
+    "bcrypt": "^3.0.4",
     "config": "^3.0.1",
     "ejs": "^2.6.1",
     "email-templates": "^5.0.3",
     "express": "^4.16.4",
+    "express-async-errors": "^3.1.1",
     "joi": "^14.3.1",
     "joi-objectid": "^2.0.0",
     "jsonwebtoken": "^8.4.0",

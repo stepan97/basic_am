@@ -4,12 +4,40 @@ const auth = require("../middleware/auth");
 const validateObjectId = require("../middleware/validateObjectId");
 const mongooseObjectId = require("mongoose").Types.ObjectId;
 const multer = require("multer");
-const upload = multer({dest: "public/images/instructors"});
+const uploadInstructorImage = multer({dest: "public/images/instructors"});
 const path = require("path");
 const fs = require("fs");
 const {DEFAULT_INSTRUCTOR_IMAGE_URL} = require("../constants");
 // const {Course} = require("../models/CourseLang");
 const {availableLanguages} = require("../constants");
+
+router.get("/full", auth, async (req, res) => {
+    const instructors = await Instructor.find();
+
+    res.send({
+        data: instructors,
+        error: null,
+        message: "All instructors in website.",
+        status: 200
+    });
+});
+
+router.get("/full/:id", auth, validateObjectId, async (req, res, next) => {
+    const instructor = await Instructor.findById(req.params.id);
+
+    if(!instructor){
+        const err = new Error("Instructor with given id was not found.");
+        err.status = 400;
+        return next(err);
+    }
+
+    res.send({
+        data: instructor,
+        error: null,
+        message: "Instructor with id " + instructor._id,
+        status: 200
+    });
+});
 
 router.get("/:id", validateObjectId, async (req, res, next) => {
     let lang = "hy";
@@ -71,49 +99,43 @@ router.get("/", async (req, res) => {
     });
 });
 
+// post an instructor
 router.post("/", auth, async (req, res, next) => {
-
-    // console.log(req.body);
-
-    try{
-
-        const {error} = validateInstructor(req.body);
-        if(error) {
-            // console.log(error.details[0]);
-            return next(error.details[0].message);
-        }
-
-        const instructor = new Instructor({
-            hy: req.body.hy,
-            ru: req.body.ru,
-            en: req.body.en
-        });
-
-
-        await instructor.save();
-
-        res.send({
-            error: null,
-            message: "New instructor added.",
-            data: instructor,
-            status: 200
-        });
-    }catch(ex){
-        console.error(ex);
+    const {error} = validateInstructor(req.body);
+    if(error) {
+        const err = new Error(error.details[0].message);
+        err.status = 400;
+        return next(err);
     }
+
+    const instructor = new Instructor({
+        hy: req.body.hy,
+        ru: req.body.ru,
+        en: req.body.en,
+        imageUrl: DEFAULT_INSTRUCTOR_IMAGE_URL
+    });
+
+    await instructor.save();
+
+    res.send({
+        error: null,
+        message: "New instructor added.",
+        data: instructor,
+        status: 200
+    });
 });
 
-// update an instructor's data (except for the image)
+// edit an instructor data
 router.put("/:id", auth, validateObjectId, async (req, res, next) => {
     const {error} = validateInstructor(req.body) ;
     if(error) return next(error.details[0].message);
 
+    // TODO: ensure that imageUrl does not change after this update
     const instructor = Instructor.findByIdAndUpdate(req.params.id,
         {
-            name: req.body.name,
-            category: req.body.category,
-            description: req.body.description,
-            imageUrl: DEFAULT_INSTRUCTOR_IMAGE_URL
+            hy: req.body.hy,
+            ru: req.body.ru,
+            en: req.body.en
         }, { new: true});
 
     if(!instructor) {
@@ -130,8 +152,8 @@ router.put("/:id", auth, validateObjectId, async (req, res, next) => {
     });
 });
 
-// TODO: edit/change
-router.put("/uploadImage/:id", auth, upload.single("instructorImage"), async (req, res, next) => {
+// edit an instructor image
+router.put("/uploadImage/:id", auth, validateObjectId, uploadInstructorImage.single("instructorImage"), async (req, res, next) => {
     let instructor = await Instructor.findById(req.params.id);
     if(!instructor) {
         const err = new Error("Instructor with given id was not found.");
@@ -145,6 +167,7 @@ router.put("/uploadImage/:id", auth, upload.single("instructorImage"), async (re
 
     const targetPath = path.join("./public/images/instructors/", imageName);
 
+    // deletes instructor's previous image if it has one and it's not the default image
     if(instructor.imageUrl && instructor.imageUrl !== DEFAULT_INSTRUCTOR_IMAGE_URL){
         fs.unlink("public/images/instructors/" + instructor.imageUrl, function(err){
             // log error
@@ -181,7 +204,7 @@ router.put("/uploadImage/:id", auth, upload.single("instructorImage"), async (re
     });
 });
 
-// TODO: edit/change
+// delete an instructor
 router.delete("/:id", auth, validateObjectId, async (req, res, next) => {
     const instructor = await Instructor.findByIdAndDelete(req.params.id);
     if(!instructor){
@@ -200,7 +223,7 @@ router.delete("/:id", auth, validateObjectId, async (req, res, next) => {
     // });
 
     
-    const deleteError = await deleteImage(instructor.imageUrl);
+    const deleteError = await deleteAnImage(instructor.imageUrl);
     if(deleteError) return next(deleteError);
 
     res.send({
@@ -210,24 +233,5 @@ router.delete("/:id", auth, validateObjectId, async (req, res, next) => {
         status: 200
     });
 });
-
-// delete instructor image if it's not default one
-function deleteImage(path){
-    return new Promise((resolve, reject) => {
-        if(path === DEFAULT_INSTRUCTOR_IMAGE_URL)
-            return resolve(undefined);
-
-        fs.unlink(path, err => {
-            if(err) {
-                if(!err.message) err.message = "Could not delete course image at path " + path;
-                err.status = err.status || 500;
-                console.log(err.message);
-                return resolve(err);
-            }
-
-            resolve(undefined);
-        });
-    });
-}
 
 module.exports = router;

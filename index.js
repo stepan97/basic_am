@@ -1,3 +1,4 @@
+require("express-async-errors");
 const express = require("express");
 const app =  express();
 const logger = require("./startup/logger");
@@ -13,7 +14,8 @@ require("./startup/joiValidation")();
 app.set("view engine", "ejs");
 
 process.on("unhandledRejection", (ex) => {
-    throw ex;
+    logger.log("error", ex.message, ex);
+    process.exit(1);
 });
 
 process.on("uncaughtExceptions", (ex) => {
